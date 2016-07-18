@@ -1,0 +1,22 @@
+{
+  "manifest_version": 2,
+
+  "name": "HotPads DevProd URL Switcher",
+  "version": "0.1.0",
+  "description": "Easily change HotPads links from localhost to production.",
+
+  "browser_action": {
+    "default_icon": {
+      "38": "icon38.png"
+    },
+    "default_title": "HotPads DevProd URL Switcher"
+  },
+  "background": {
+    "scripts": ["bundle.js"]
+  },
+  "icons": { 
+    "48": "icon48.png",
+    "128": "icon128.png" 
+  },
+  "permissions": ["tabs"]
+}

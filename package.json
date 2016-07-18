@@ -1,0 +1,14 @@
+{
+  "name": "DevProd URL Switcher",
+  "version": "0.1.0",
+  "description": "Switch between Development and Production URLs in Chrome",
+  "main": "content.js",
+  "scripts": {
+    "build": "browserify src/main.js -o build/bundle.js",
+  },
+  "author": "Dave Schumaker",
+  "license": "ISC",
+  "dependencies": {
+    "url-parse": "1.1.1"
+  }
+}
