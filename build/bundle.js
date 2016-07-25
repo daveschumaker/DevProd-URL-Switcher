@@ -1,4 +1,82 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
+/*!
+ * chrome-promise 1.0.6
+ * https://github.com/tfoxy/chrome-promise
+ *
+ * Copyright 2015 Tomás Fox
+ * Released under the MIT license
+ */
+
+(function (root, factory) {
+  if (typeof define === 'function' && define.amd) {
+    // AMD. Register as an anonymous module.
+    define([], factory.bind(null, typeof exports === 'object'? this : root));
+  } else if (typeof exports === 'object') {
+    // Node. Does not work with strict CommonJS, but
+    // only CommonJS-like environments that support module.exports,
+    // like Node.
+    module.exports = factory(this);
+  } else {
+    // Browser globals (root is window)
+    root.ChromePromise = factory(root);
+  }
+}(this, function (root) {
+  'use strict';
+
+  function ChromePromise(chrome, Promise) {
+    chrome = chrome || root.chrome;
+    Promise = Promise || root.Promise;
+
+    var setPromiseFunction = function(fn, self) {
+
+      return function() {
+        var args = arguments;
+
+        return new Promise(function(resolve, reject) {
+          function callback() {
+            var err = chrome.runtime.lastError;
+            if (err) {
+              reject(err);
+            } else {
+              resolve.apply(null, arguments);
+            }
+          }
+
+          args[args.length] = callback;
+          args.length++;
+
+          fn.apply(self, args);
+        });
+
+      };
+
+    };
+
+    var fillProperties = function(from, to) {
+      for (var key in from) {
+        if (Object.prototype.hasOwnProperty.call(from, key)) {
+          var val = from[key];
+          var type = typeof val;
+
+          if (type === 'object' && !(val instanceof ChromePromise)) {
+            to[key] = {};
+            fillProperties(val, to[key]);
+          } else if (type === 'function') {
+            to[key] = setPromiseFunction(val, from);
+          } else {
+            to[key] = val;
+          }
+        }
+      }
+    };
+
+    fillProperties(chrome, this);
+  }
+
+  return ChromePromise;
+}));
+
+},{}],2:[function(require,module,exports){
 'use strict';
 
 var required = require('requires-port')
@@ -269,7 +347,7 @@ URL.qs = qs;
 URL.location = lolcation;
 module.exports = URL;
 
-},{"./lolcation":2,"querystringify":3,"requires-port":4}],2:[function(require,module,exports){
+},{"./lolcation":3,"querystringify":4,"requires-port":5}],3:[function(require,module,exports){
 (function (global){
 'use strict';
 
@@ -326,7 +404,7 @@ module.exports = function lolcation(loc) {
 };
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./":1}],3:[function(require,module,exports){
+},{"./":2}],4:[function(require,module,exports){
 'use strict';
 
 var has = Object.prototype.hasOwnProperty;
@@ -389,7 +467,7 @@ function querystringify(obj, prefix) {
 exports.stringify = querystringify;
 exports.parse = querystring;
 
-},{}],4:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
 'use strict';
 
 /**
@@ -429,26 +507,54 @@ module.exports = function required(port, protocol) {
   return port !== 0;
 };
 
-},{}],5:[function(require,module,exports){
-var URL = require('url-parse');
-let pathOptions;
+},{}],6:[function(require,module,exports){
+module.exports = {
+    defaultProdUrl: 'https://hotpads.com',
+    defaultDevUrl: 'http://local.hotpads.com:3000'
+};
 
-chrome.browserAction.onClicked.addListener(function(tab) {
-    let currentUrl = tab.url;
+},{}],7:[function(require,module,exports){
+const ChromePromise = require('chrome-promise');
+const URL = require('url-parse');
+const config = require('./config');
+chrome.promise = new ChromePromise();
+
+chrome.browserAction.onClicked.addListener((tab) => {
     let newUrl;
-    let url = new URL(currentUrl);
+    let url = new URL(tab.url);
 
-    if (url.host === 'hotpads.com') {
-        newUrl = 'http://localhost:3000' + url.pathname + url.hash + url.query;
-    } else if (url.host === 'localhost:3000') {
-        newUrl = 'https://hotpads.com' + url.pathname + url.hash + url.query;
-    } else {
-        alert('Not a valid HotPads URL.');
-        return;
-    }
+    let prodUrl;
+    let devUrl;
 
-    chrome.tabs.create({
-        url: newUrl
-    })
+    chrome.promise.storage.sync.get('prodUrl')
+        .then((result) => {
+            prodUrl = result.prodUrl || config.defaultProdUrl;
+            return chrome.promise.storage.sync.get('devUrl')
+        })
+        .then((result) => {
+            devUrl = result.devUrl || config.defaultDevUrl;
+        })
+        .then(() => {
+            let urlHost = url.protocol + '//' + url.host;
+            let invalidUrl = false;
+            if (urlHost === prodUrl) {
+                newUrl = devUrl + url.pathname + url.hash + url.query;
+            } else if (urlHost === devUrl) {
+                newUrl = prodUrl + url.pathname + url.hash + url.query;
+            } else {
+                alert('Invalid URL host detected.');
+                invalidUrl = true;
+            }
+
+            // console.log('url stufffff', url, prodUrl, devUrl);
+            // console.log('Navigating to:', newUrl);
+            if (invalidUrl) {
+                return;
+            }
+            chrome.tabs.create({
+                url: newUrl
+            })
+        })
 })
-},{"url-parse":1}]},{},[5]);
+
+},{"./config":6,"chrome-promise":1,"url-parse":2}]},{},[7]);

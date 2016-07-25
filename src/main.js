@@ -1,21 +1,42 @@
-var URL = require('url-parse');
-let pathOptions;
+const ChromePromise = require('chrome-promise');
+const URL = require('url-parse');
+const config = require('./config');
+chrome.promise = new ChromePromise();
 
-chrome.browserAction.onClicked.addListener(function(tab) {
-    let currentUrl = tab.url;
+chrome.browserAction.onClicked.addListener((tab) => {
     let newUrl;
-    let url = new URL(currentUrl);
+    let url = new URL(tab.url);
 
-    if (url.host === 'hotpads.com') {
-        newUrl = 'http://localhost:3000' + url.pathname + url.hash + url.query;
-    } else if (url.host === 'localhost:3000') {
-        newUrl = 'https://hotpads.com' + url.pathname + url.hash + url.query;
-    } else {
-        alert('Not a valid HotPads URL.');
-        return;
-    }
+    let prodUrl;
+    let devUrl;
 
-    chrome.tabs.create({
-        url: newUrl
-    })
+    chrome.promise.storage.sync.get('prodUrl')
+        .then((result) => {
+            prodUrl = result.prodUrl || config.defaultProdUrl;
+            return chrome.promise.storage.sync.get('devUrl')
+        })
+        .then((result) => {
+            devUrl = result.devUrl || config.defaultDevUrl;
+        })
+        .then(() => {
+            let urlHost = url.protocol + '//' + url.host;
+            let invalidUrl = false;
+            if (urlHost === prodUrl) {
+                newUrl = devUrl + url.pathname + url.hash + url.query;
+            } else if (urlHost === devUrl) {
+                newUrl = prodUrl + url.pathname + url.hash + url.query;
+            } else {
+                alert('Invalid URL host detected.');
+                invalidUrl = true;
+            }
+
+            // console.log('url stufffff', url, prodUrl, devUrl);
+            // console.log('Navigating to:', newUrl);
+            if (invalidUrl) {
+                return;
+            }
+            chrome.tabs.create({
+                url: newUrl
+            })
+        })
 })
