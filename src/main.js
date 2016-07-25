@@ -26,7 +26,7 @@ chrome.browserAction.onClicked.addListener((tab) => {
             } else if (urlHost === devUrl) {
                 newUrl = prodUrl + url.pathname + url.hash + url.query;
             } else {
-                alert('Invalid URL host detected.');
+                alert('Invalid URL host detected. Check DevProd URL Switchr options for correct URLs');
                 invalidUrl = true;
             }
 
